@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Craps Party Companion</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <h1>Craps Party Companion</h1>
+    <p class="lead">Join the host's room and place your pass line bets.</p>
+
+    <section class="card">
+      <div class="field-row">
+        <label for="room">Room code</label>
+        <input id="room" maxlength="8" />
+      </div>
+      <div class="field-row">
+        <label for="name">Name</label>
+        <input id="name" maxlength="20" placeholder="Player name" />
+      </div>
+      <button id="join">Join room</button>
+      <p id="status">Not connected</p>
+    </section>
+
+    <section class="card">
+      <h2>Table</h2>
+      <p id="table-state">Waiting for host state...</p>
+      <p id="table-roll">Last roll: --</p>
+      <p id="table-point">Point: OFF</p>
+    </section>
+
+    <section class="card">
+      <h2>Place Bet</h2>
+      <div class="field-row">
+        <label for="side">Side</label>
+        <select id="side">
+          <option value="pass">Pass</option>
+          <option value="dontPass">Don't Pass</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label for="amount">Amount</label>
+        <input id="amount" type="number" min="5" max="200" value="25" />
+      </div>
+      <button id="bet">Submit bet</button>
+      <p id="bet-status"></p>
+    </section>
+
+    <section class="card">
+      <h2>Players</h2>
+      <ul id="players"></ul>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>

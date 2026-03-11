@@ -1,0 +1,14 @@
+*.iml
+*.swp
+.idea
+.DS_Store
+.vscode
+.tmp
+.env
+
+dist
+build
+buildinfo.json
+node_modules
+npm-debug.log
+CMakeUserPresets.json

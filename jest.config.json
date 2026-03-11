@@ -1,0 +1,25 @@
+{
+  "preset": "react-native",
+  "transform": {
+    "^.+\\.tsx?$": "ts-jest"
+  },
+  "setupFiles": ["<rootDir>/node_modules/@amazon-devices/react-native-kepler/jest/setup.js"],
+  "testRegex": "/test/.*\\.(test|spec)\\.(ts|tsx|js)$",
+  "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json", "node"],
+  "moduleNameMapper": {
+    "^~/(.*)$": "<rootDir>/src/$1"
+  },
+  "modulePaths": ["<rootDir>/src"],
+  "roots": [
+    "<rootDir>/src/",
+    "<rootDir>/test/",
+    "<rootDir>/node_modules/"
+  ],
+  "collectCoverage": false,
+  "globals": {
+    "ts-jest": {
+      "babelConfig": true,
+      "diagnostics": true
+    }
+  }
+}

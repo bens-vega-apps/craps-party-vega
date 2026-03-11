@@ -1,0 +1,91 @@
+:root {
+  --bg: #06160e;
+  --card: #11291d;
+  --line: #2a5d44;
+  --text: #ecf8ef;
+  --muted: #a5c8b2;
+  --gold: #d7b247;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at top, #123b28 0%, var(--bg) 60%);
+  color: var(--text);
+}
+
+.shell {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #fff4c9;
+}
+
+.lead {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.card {
+  margin-top: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.field-row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+label {
+  color: #d8efde;
+}
+
+input,
+select,
+button {
+  border-radius: 8px;
+  border: 1px solid #3b7258;
+  padding: 10px;
+  font-size: 1rem;
+}
+
+input,
+select {
+  background: #0a1f15;
+  color: var(--text);
+}
+
+button {
+  background: var(--gold);
+  color: #1f250f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#status,
+#bet-status {
+  color: var(--muted);
+  margin-top: 10px;
+}
+
+#players {
+  margin: 0;
+  padding-left: 18px;
+}
+
+#players li {
+  margin-bottom: 4px;
+}
