@@ -2,6 +2,7 @@ services:
   - type: web
     name: craps-party-relay
     runtime: node
+    plan: free
     rootDir: relay-server
     buildCommand: npm install
     startCommand: npm run start
