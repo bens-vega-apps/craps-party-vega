@@ -9,7 +9,7 @@
  * - Use your relay host LAN IP, for example:
  *   ws://192.168.68.105:8787/ws
  */
-export const RELAY_WS_URL = 'ws://192.168.68.105:8787/ws';
+export const RELAY_WS_URL = 'wss://craps-party-relay.onrender.com/ws';
 
 const deriveJoinBaseUrl = (relayWsUrl: string): string => {
   try {
@@ -17,7 +17,7 @@ const deriveJoinBaseUrl = (relayWsUrl: string): string => {
     const protocol = parsed.protocol === 'wss:' ? 'https:' : 'http:';
     return `${protocol}//${parsed.host}`;
   } catch (_error) {
-    return 'http://192.168.68.105:8787';
+    return 'https://craps-party-relay.onrender.com';
   }
 };
 
