@@ -11,6 +11,9 @@ const webRoot = normalize(join(__dirname, '..', '..', 'companion-web'));
 
 const port = Number(process.env.PORT ?? 8787);
 const host = process.env.HOST ?? '0.0.0.0';
+const PLAYER_RECONNECT_GRACE_MS = Number(
+  process.env.PLAYER_RECONNECT_GRACE_MS ?? 5 * 60 * 1000,
+);
 
 const rooms = new Map();
 
@@ -33,6 +36,13 @@ const getRoom = (roomCode) => {
   return rooms.get(normalizedCode);
 };
 
+const clearDisconnectTimer = (player) => {
+  if (player?.disconnectTimer) {
+    clearTimeout(player.disconnectTimer);
+    player.disconnectTimer = null;
+  }
+};
+
 const broadcastPresence = (roomCode) => {
   const room = rooms.get(roomCode);
   if (!room) {
@@ -42,6 +52,9 @@ const broadcastPresence = (roomCode) => {
   const players = Array.from(room.players.entries()).map(([id, player]) => ({
     id,
     name: player.name,
+    connected: Boolean(
+      player.socket && player.socket.readyState === WebSocket.OPEN,
+    ),
   }));
 
   const payload = {
@@ -52,7 +65,9 @@ const broadcastPresence = (roomCode) => {
   };
 
   send(room.host, payload);
-  room.players.forEach((player) => send(player.socket, payload));
+  room.players.forEach((player) => {
+    send(player.socket, payload);
+  });
 };
 
 const cleanupRoomIfEmpty = (roomCode) => {
@@ -157,17 +172,23 @@ wss.on('connection', (socket) => {
           .trim() || 'Player';
 
       const existingPlayer = room.players.get(playerId);
-      if (existingPlayer && existingPlayer.socket !== socket) {
-        try {
-          existingPlayer.socket.close();
-        } catch (_error) {
-          // Ignore close failures; new socket still replaces previous entry.
+      if (existingPlayer) {
+        clearDisconnectTimer(existingPlayer);
+        existingPlayer.disconnectedAt = null;
+        if (existingPlayer.socket && existingPlayer.socket !== socket) {
+          try {
+            existingPlayer.socket.close();
+          } catch (_error) {
+            // Ignore close failures; new socket still replaces previous entry.
+          }
         }
       }
 
       room.players.set(playerId, {
         socket,
         name,
+        disconnectTimer: null,
+        disconnectedAt: null,
       });
 
       socket.meta = {role, roomCode, playerId, name};
@@ -247,9 +268,31 @@ wss.on('connection', (socket) => {
     }
 
     if (meta.role === 'player' && meta.playerId) {
-      const active = room.players.get(meta.playerId);
+      const playerId = meta.playerId;
+      const roomCode = meta.roomCode;
+      const active = room.players.get(playerId);
       if (active && active.socket === socket) {
-        room.players.delete(meta.playerId);
+        active.socket = null;
+        active.disconnectedAt = Date.now();
+        clearDisconnectTimer(active);
+        active.disconnectTimer = setTimeout(() => {
+          const currentRoom = rooms.get(roomCode);
+          if (!currentRoom) {
+            return;
+          }
+          const currentPlayer = currentRoom.players.get(playerId);
+          if (!currentPlayer) {
+            return;
+          }
+          if (currentPlayer.socket) {
+            return;
+          }
+
+          clearDisconnectTimer(currentPlayer);
+          currentRoom.players.delete(playerId);
+          broadcastPresence(roomCode);
+          cleanupRoomIfEmpty(roomCode);
+        }, PLAYER_RECONNECT_GRACE_MS);
       }
     }
 

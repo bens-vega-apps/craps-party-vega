@@ -511,10 +511,10 @@ const getComePointChipStyle = (
 
 export const App = () => {
   const roomCode = useMemo(() => createRoomCode(), []);
+  const joinBaseUrl = useMemo(() => JOIN_BASE_URL.replace(/\/$/, ''), []);
   const joinUrl = useMemo(() => {
-    const base = JOIN_BASE_URL.replace(/\/$/, '');
-    return `${base}/?room=${roomCode}`;
-  }, [roomCode]);
+    return `${joinBaseUrl}/?room=${roomCode}`;
+  }, [joinBaseUrl, roomCode]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const rollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -2505,8 +2505,8 @@ export const App = () => {
               <Text style={styles.joinLine}>
                 1. On your phone, open this link in a browser:
               </Text>
-              <Text selectable style={styles.joinLink}>
-                {joinUrl}
+              <Text style={styles.joinLink}>
+                {joinBaseUrl}
               </Text>
               <Text style={styles.joinLine}>
                 2. Enter room code: {roomCode}
@@ -3473,8 +3473,10 @@ const styles = StyleSheet.create({
   },
   joinLink: {
     color: '#f4e28d',
-    fontSize: 17,
+    fontSize: 16,
+    lineHeight: 21,
     fontWeight: '700',
+    flexShrink: 1,
   },
   bottomRail: {
     marginTop: 8,

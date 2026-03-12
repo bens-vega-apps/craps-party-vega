@@ -29,8 +29,42 @@ const myBackupBetsLabel = document.getElementById('my-backup-bets');
 const playersList = document.getElementById('players');
 
 const params = new URLSearchParams(window.location.search);
-if (params.get('room')) {
-  roomInput.value = params.get('room').toUpperCase();
+const LAST_ROOM_STORAGE_KEY = 'craps_party_last_room';
+const LAST_NAME_STORAGE_KEY = 'craps_party_last_name';
+const RECONNECT_GRACE_MS = 5 * 60 * 1000;
+const RECONNECT_RETRY_MS = 2000;
+
+const loadStoredValue = (key) => {
+  try {
+    return localStorage.getItem(key) || '';
+  } catch (_error) {
+    return '';
+  }
+};
+
+const saveStoredValue = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (_error) {
+    // Ignore localStorage errors in restricted browser modes.
+  }
+};
+
+const queryRoom = params.get('room');
+if (queryRoom) {
+  roomInput.value = queryRoom.toUpperCase();
+} else {
+  const storedRoom = loadStoredValue(LAST_ROOM_STORAGE_KEY);
+  if (storedRoom) {
+    roomInput.value = storedRoom.toUpperCase();
+  }
+}
+
+if (!nameInput.value.trim()) {
+  const storedName = loadStoredValue(LAST_NAME_STORAGE_KEY);
+  if (storedName) {
+    nameInput.value = storedName;
+  }
 }
 
 let socket = null;
@@ -39,6 +73,9 @@ let joinedRoom = '';
 let joinedPlayerId = '';
 let currentPoint = null;
 let selfPlayerState = null;
+let reconnectTimer = null;
+let reconnectUntil = 0;
+let reconnectContext = null;
 
 const getPlayerIdStorageKey = (roomCode) =>
   `craps_party_player_id_${roomCode}`;
@@ -203,37 +240,87 @@ const renderMyCurrentBets = (player) => {
   }`;
 };
 
-joinButton.addEventListener('click', () => {
-  const roomCode = roomInput.value.trim().toUpperCase();
-  const name = nameInput.value.trim() || 'Player';
+const clearReconnectTimer = () => {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+};
 
+const resetLiveState = () => {
+  joined = false;
+  joinedPlayerId = '';
+  selfPlayerState = null;
+  currentPoint = null;
+  setComeOddsStatus('');
+  setBackupStatus('');
+  renderMyCurrentBets(null);
+  updateMainTargetAvailability();
+};
+
+const scheduleReconnect = () => {
+  if (!reconnectContext) {
+    return;
+  }
+  const remaining = reconnectUntil - Date.now();
+  if (remaining <= 0) {
+    reconnectContext = null;
+    clearReconnectTimer();
+    setStatus('Session timed out. Tap Join to reconnect.');
+    resetLiveState();
+    return;
+  }
+
+  clearReconnectTimer();
+  reconnectTimer = setTimeout(() => {
+    connectToRoom(reconnectContext.roomCode, reconnectContext.name, true);
+  }, Math.min(RECONNECT_RETRY_MS, remaining));
+};
+
+const closeSocketIfOpen = () => {
+  if (!socket) {
+    return;
+  }
+  socket.onopen = null;
+  socket.onclose = null;
+  socket.onerror = null;
+  socket.onmessage = null;
+  if (
+    socket.readyState === WebSocket.OPEN ||
+    socket.readyState === WebSocket.CONNECTING
+  ) {
+    try {
+      socket.close();
+    } catch (_error) {
+      // Ignore explicit close failures.
+    }
+  }
+  socket = null;
+};
+
+const connectToRoom = (roomCode, name, isReconnect = false) => {
   if (!roomCode) {
     setStatus('Enter a room code.');
     return;
   }
 
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.close();
+  reconnectContext = {roomCode, name};
+  if (!isReconnect) {
+    reconnectUntil = Date.now() + RECONNECT_GRACE_MS;
+    setBetStatus('');
+    setComeOddsStatus('');
+    setPlaceStatus('');
+    setBackupStatus('');
   }
 
+  closeSocketIfOpen();
+  clearReconnectTimer();
+
   socket = new WebSocket(wsUrl);
-  setStatus('Connecting...');
-  setBetStatus('');
-  setComeOddsStatus('');
-  setPlaceStatus('');
-  setBackupStatus('');
-  renderMyCurrentBets(null);
-  joined = false;
-  joinedPlayerId = '';
-  selfPlayerState = null;
+  setStatus(isReconnect ? 'Reconnecting to room...' : 'Connecting...');
 
   socket.onopen = () => {
-    let savedPlayerId = '';
-    try {
-      savedPlayerId = localStorage.getItem(getPlayerIdStorageKey(roomCode)) || '';
-    } catch (_error) {
-      savedPlayerId = '';
-    }
+    const savedPlayerId = loadStoredValue(getPlayerIdStorageKey(roomCode));
 
     socket.send(
       JSON.stringify({
@@ -247,18 +334,23 @@ joinButton.addEventListener('click', () => {
   };
 
   socket.onclose = () => {
-    setStatus('Disconnected from relay.');
     joined = false;
-    selfPlayerState = null;
-    currentPoint = null;
-    setComeOddsStatus('');
-    setBackupStatus('');
-    renderMyCurrentBets(null);
-    updateMainTargetAvailability();
+
+    if (reconnectContext && Date.now() < reconnectUntil) {
+      setStatus('Disconnected. Reconnecting (session held for 5 minutes)...');
+      scheduleReconnect();
+      return;
+    }
+
+    reconnectContext = null;
+    setStatus('Disconnected from relay.');
+    resetLiveState();
   };
 
   socket.onerror = () => {
-    setStatus('Connection error.');
+    if (!joined) {
+      setStatus('Connection error. Retrying...');
+    }
   };
 
   socket.onmessage = (event) => {
@@ -268,22 +360,23 @@ joinButton.addEventListener('click', () => {
       joined = true;
       joinedRoom = message.roomCode;
       joinedPlayerId = message.playerId || '';
-      try {
-        if (joinedPlayerId) {
-          localStorage.setItem(
-            getPlayerIdStorageKey(message.roomCode),
-            joinedPlayerId,
-          );
-        }
-      } catch (_error) {
-        // Ignore localStorage errors in restricted browser modes.
+      reconnectUntil = Date.now() + RECONNECT_GRACE_MS;
+      saveStoredValue(LAST_ROOM_STORAGE_KEY, message.roomCode);
+      saveStoredValue(LAST_NAME_STORAGE_KEY, name);
+      if (joinedPlayerId) {
+        saveStoredValue(
+          getPlayerIdStorageKey(message.roomCode),
+          joinedPlayerId,
+        );
       }
+
       setStatus(`Joined room ${message.roomCode} as ${message.name || name}`);
       setBetStatus('Choose a main bet and submit.');
       setComeOddsStatus('Choose a number to add come odds.');
       setPlaceStatus('Choose a number and submit a place bet.');
       setBackupStatus('Choose a number to add place backup.');
       updateMainTargetAvailability();
+      clearReconnectTimer();
       return;
     }
 
@@ -316,6 +409,35 @@ joinButton.addEventListener('click', () => {
       setStatus(`Error: ${message.message}`);
     }
   };
+};
+
+joinButton.addEventListener('click', () => {
+  const roomCode = roomInput.value.trim().toUpperCase();
+  const name = nameInput.value.trim() || 'Player';
+  connectToRoom(roomCode, name, false);
+});
+
+window.addEventListener('pageshow', () => {
+  if (
+    reconnectContext &&
+    Date.now() < reconnectUntil &&
+    (!socket || socket.readyState === WebSocket.CLOSED)
+  ) {
+    connectToRoom(reconnectContext.roomCode, reconnectContext.name, true);
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') {
+    return;
+  }
+  if (
+    reconnectContext &&
+    Date.now() < reconnectUntil &&
+    (!socket || socket.readyState === WebSocket.CLOSED)
+  ) {
+    connectToRoom(reconnectContext.roomCode, reconnectContext.name, true);
+  }
 });
 
 betButton.addEventListener('click', () => {
