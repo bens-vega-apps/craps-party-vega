@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: craps-party-relay
+    runtime: node
+    rootDir: relay-server
+    buildCommand: npm install
+    startCommand: npm run start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: HOST
+        value: 0.0.0.0

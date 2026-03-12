@@ -76,9 +76,26 @@ button {
 }
 
 #status,
-#bet-status {
+#bet-status,
+#come-odds-status,
+#place-status,
+#backup-status {
   color: var(--muted);
   margin-top: 10px;
+}
+
+#my-bankroll,
+#my-main-bets,
+#my-come-odds-bets,
+#my-place-bets,
+#my-backup-bets {
+  margin: 6px 0;
+  color: #dceede;
+}
+
+#my-bankroll {
+  color: #f4e28d;
+  font-weight: 700;
 }
 
 #players {

@@ -9,7 +9,7 @@
 <body>
   <main class="shell">
     <h1>Craps Party Companion</h1>
-    <p class="lead">Join the host's room and place your pass line bets.</p>
+    <p class="lead">Join the host room and place line bets, pass odds, come odds, place bets, and place backup bets.</p>
 
     <section class="card">
       <div class="field-row">
@@ -32,20 +32,95 @@
     </section>
 
     <section class="card">
-      <h2>Place Bet</h2>
+      <h2>My Current Bets</h2>
+      <p id="my-bankroll">Bankroll: --</p>
+      <p id="my-main-bets">Main Bets: --</p>
+      <p id="my-come-odds-bets">Come Odds: --</p>
+      <p id="my-place-bets">Place Bets: --</p>
+      <p id="my-backup-bets">Place Backup: --</p>
+    </section>
+
+    <section class="card">
+      <h2>Main Bets</h2>
       <div class="field-row">
-        <label for="side">Side</label>
-        <select id="side">
-          <option value="pass">Pass</option>
-          <option value="dontPass">Don't Pass</option>
+        <label for="target">Bet Zone</label>
+        <select id="target">
+          <option value="pass">Pass Line</option>
+          <option value="dontPass">Don't Pass Bar</option>
+          <option value="come">Come</option>
+          <option value="field">Field</option>
+          <option value="odds">Pass Odds</option>
         </select>
       </div>
       <div class="field-row">
         <label for="amount">Amount</label>
-        <input id="amount" type="number" min="5" max="200" value="25" />
+        <input id="amount" type="number" min="5" value="25" />
       </div>
-      <button id="bet">Submit bet</button>
+      <button id="bet">Submit main bet</button>
       <p id="bet-status"></p>
+    </section>
+
+    <section class="card">
+      <h2>Come Odds (by number)</h2>
+      <div class="field-row">
+        <label for="come-odds-number">Number</label>
+        <select id="come-odds-number">
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label for="come-odds-amount">Amount</label>
+        <input id="come-odds-amount" type="number" min="5" value="25" />
+      </div>
+      <button id="come-odds-bet">Submit come odds</button>
+      <p id="come-odds-status"></p>
+    </section>
+
+    <section class="card">
+      <h2>Place Bets (4, 5, 6, 8, 9, 10)</h2>
+      <div class="field-row">
+        <label for="place-number">Number</label>
+        <select id="place-number">
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label for="place-amount">Amount</label>
+        <input id="place-amount" type="number" min="5" value="25" />
+      </div>
+      <button id="place-bet">Submit place bet</button>
+      <p id="place-status"></p>
+    </section>
+
+    <section class="card">
+      <h2>Place Backup (max 3x/4x/5x by number)</h2>
+      <div class="field-row">
+        <label for="backup-number">Number</label>
+        <select id="backup-number">
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label for="backup-amount">Amount</label>
+        <input id="backup-amount" type="number" min="5" value="25" />
+      </div>
+      <button id="backup-bet">Submit place backup</button>
+      <p id="backup-status"></p>
     </section>
 
     <section class="card">

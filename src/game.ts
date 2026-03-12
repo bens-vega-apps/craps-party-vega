@@ -32,7 +32,10 @@ export const rollDice = (): Roll => {
   return {die1, die2, total: die1 + die2};
 };
 
-export const resolveRoll = (point: number | null, total: number): RollResolution => {
+export const resolveRoll = (
+  point: number | null,
+  total: number,
+): RollResolution => {
   if (point === null) {
     if (total === 7 || total === 11) {
       return {
@@ -54,7 +57,7 @@ export const resolveRoll = (point: number | null, total: number): RollResolution
       return {
         outcome: 'push',
         nextPoint: null,
-        status: 'Come-out 12. Pass loses and Don\'t Pass pushes.',
+        status: "Come-out 12. Pass loses and Don't Pass pushes.",
       };
     }
 
@@ -97,7 +100,16 @@ export const settleBet = (
     return chips;
   }
 
-  if (outcome === 'point_set' || outcome === 'no_decision' || outcome === 'push') {
+  if (outcome === 'point_set' || outcome === 'no_decision') {
+    return chips;
+  }
+
+  if (outcome === 'push') {
+    // In this simplified ruleset, "push" represents come-out 12:
+    // Pass loses while Don't Pass pushes.
+    if (bet.side === 'pass') {
+      return Math.max(0, chips - bet.amount);
+    }
     return chips;
   }
 
@@ -106,10 +118,14 @@ export const settleBet = (
   return Math.max(0, chips + delta);
 };
 
-export const isRoundDecision = (outcome: RollOutcome): boolean => {
-  return outcome === 'pass_win' || outcome === 'pass_lose' || outcome === 'push';
+export const isRoundDecision = (
+  outcome: RollOutcome,
+): outcome is 'pass_win' | 'pass_lose' | 'push' => {
+  return (
+    outcome === 'pass_win' || outcome === 'pass_lose' || outcome === 'push'
+  );
 };
 
 export const sideLabel = (side: BetSide): string => {
-  return side === 'pass' ? 'Pass' : "Don\'t Pass";
+  return side === 'pass' ? 'Pass' : "Don't Pass";
 };

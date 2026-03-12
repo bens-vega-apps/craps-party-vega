@@ -21,7 +21,7 @@ const send = (socket, payload) => {
   socket.send(JSON.stringify(payload));
 };
 
-const getRoom = roomCode => {
+const getRoom = (roomCode) => {
   const normalizedCode = roomCode.toUpperCase();
   if (!rooms.has(normalizedCode)) {
     rooms.set(normalizedCode, {
@@ -33,7 +33,7 @@ const getRoom = roomCode => {
   return rooms.get(normalizedCode);
 };
 
-const broadcastPresence = roomCode => {
+const broadcastPresence = (roomCode) => {
   const room = rooms.get(roomCode);
   if (!room) {
     return;
@@ -52,10 +52,10 @@ const broadcastPresence = roomCode => {
   };
 
   send(room.host, payload);
-  room.players.forEach(player => send(player.socket, payload));
+  room.players.forEach((player) => send(player.socket, payload));
 };
 
-const cleanupRoomIfEmpty = roomCode => {
+const cleanupRoomIfEmpty = (roomCode) => {
   const room = rooms.get(roomCode);
   if (!room) {
     return;
@@ -68,7 +68,14 @@ const cleanupRoomIfEmpty = roomCode => {
 
 const server = createServer((request, response) => {
   const requestUrl = new URL(request.url ?? '/', 'http://localhost');
-  const requestPath = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
+  if (requestUrl.pathname === '/healthz') {
+    response.writeHead(200, {'content-type': 'application/json; charset=utf-8'});
+    response.end(JSON.stringify({ok: true}));
+    return;
+  }
+
+  const requestPath =
+    requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
   const cleanedPath = normalize(requestPath).replace(/^\.+/, '');
   const filePath = join(webRoot, cleanedPath);
 
@@ -88,13 +95,18 @@ const server = createServer((request, response) => {
       ? 'application/javascript; charset=utf-8'
       : 'text/plain; charset=utf-8';
 
-  response.writeHead(200, {'content-type': contentType});
+  response.writeHead(200, {
+    'content-type': contentType,
+    'cache-control': 'no-store, max-age=0',
+    pragma: 'no-cache',
+    expires: '0',
+  });
   response.end(readFileSync(filePath));
 });
 
 const wss = new WebSocketServer({server, path: '/ws'});
 
-wss.on('connection', socket => {
+wss.on('connection', (socket) => {
   socket.meta = {
     role: null,
     roomCode: null,
@@ -102,7 +114,7 @@ wss.on('connection', socket => {
     name: null,
   };
 
-  socket.on('message', raw => {
+  socket.on('message', (raw) => {
     let message;
 
     try {
@@ -139,7 +151,19 @@ wss.on('connection', socket => {
       }
 
       const playerId = String(message.playerId ?? randomUUID().slice(0, 8));
-      const name = String(message.name ?? 'Player').slice(0, 20).trim() || 'Player';
+      const name =
+        String(message.name ?? 'Player')
+          .slice(0, 20)
+          .trim() || 'Player';
+
+      const existingPlayer = room.players.get(playerId);
+      if (existingPlayer && existingPlayer.socket !== socket) {
+        try {
+          existingPlayer.socket.close();
+        } catch (_error) {
+          // Ignore close failures; new socket still replaces previous entry.
+        }
+      }
 
       room.players.set(playerId, {
         socket,
@@ -171,19 +195,34 @@ wss.on('connection', socket => {
 
     if (message.type === 'host_state' && meta.role === 'host') {
       room.lastHostState = message.state;
-      room.players.forEach(player => {
+      room.players.forEach((player) => {
         send(player.socket, {type: 'host_state', state: message.state});
       });
       return;
     }
 
     if (message.type === 'player_bet' && meta.role === 'player') {
+      const incomingTarget = String(
+        message.target ?? (message.side === 'dontPass' ? 'dontPass' : 'pass'),
+      );
+      const target =
+        incomingTarget === 'come' ||
+        incomingTarget === 'field' ||
+        incomingTarget === 'odds' ||
+        incomingTarget === 'comeOdds' ||
+        incomingTarget === 'place' ||
+        incomingTarget === 'backup' ||
+        incomingTarget === 'dontPass'
+          ? incomingTarget
+          : 'pass';
+
       send(room.host, {
         type: 'player_bet',
         roomCode: meta.roomCode,
         playerId: meta.playerId,
         name: meta.name,
-        side: message.side,
+        target,
+        number: Number(message.number ?? 0),
         amount: Number(message.amount ?? 0),
       });
       return;
@@ -208,7 +247,10 @@ wss.on('connection', socket => {
     }
 
     if (meta.role === 'player' && meta.playerId) {
-      room.players.delete(meta.playerId);
+      const active = room.players.get(meta.playerId);
+      if (active && active.socket === socket) {
+        room.players.delete(meta.playerId);
+      }
     }
 
     broadcastPresence(meta.roomCode);
